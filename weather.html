@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Weather</title>
+<style>
+  :root{
+    --bg-top:#3E7BD6;
+    --bg-bottom:#0F2A57;
+    --card:rgba(255,255,255,0.14);
+    --card-border:rgba(255,255,255,0.22);
+    --text:#FFFFFF;
+    --text-dim:rgba(255,255,255,0.72);
+    --text-faint:rgba(255,255,255,0.5);
+    --accent-warn:#FFD36B;
+    --accent-good:#8FE3A6;
+    --accent-bad:#FF9E9E;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background:linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+    color:var(--text);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+  }
+  .phone{
+    width:100%;
+    max-width:430px;
+    min-height:100vh;
+    padding:env(safe-area-inset-top,18px) 18px 40px 18px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+
+  /* Search / location bar */
+  .locbar{
+    display:flex;
+    gap:8px;
+    margin-top:6px;
+  }
+  .locbar input{
+    flex:1;
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:14px;
+    padding:11px 14px;
+    color:var(--text);
+    font-size:15px;
+    outline:none;
+  }
+  .locbar input::placeholder{color:var(--text-faint);}
+  .iconbtn{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:14px;
+    width:42px;
+    height:42px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:18px;
+    color:var(--text);
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .iconbtn:active{transform:scale(0.94);}
+
+  /* Hero */
+  .hero{
+    text-align:center;
+    padding:18px 0 6px 0;
+  }
+  .hero .place{
+    font-size:22px;
+    font-weight:600;
+    letter-spacing:0.2px;
+  }
+  .hero .updated{
+    font-size:12px;
+    color:var(--text-faint);
+    margin-top:2px;
+  }
+  .hero .temp{
+    font-size:96px;
+    font-weight:200;
+    line-height:1;
+    margin:6px 0 0 0;
+    letter-spacing:-2px;
+  }
+  .hero .cond{
+    font-size:17px;
+    color:var(--text-dim);
+    text-transform:capitalize;
+  }
+  .hero .hilo{
+    font-size:14px;
+    color:var(--text-dim);
+    margin-top:2px;
+  }
+  .hero .icon{
+    font-size:54px;
+    line-height:1;
+    margin-top:4px;
+  }
+
+  /* Hourly strip */
+  .hourly{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:18px;
+    padding:14px 10px;
+    display:flex;
+    overflow-x:auto;
+    gap:18px;
+    scrollbar-width:none;
+  }
+  .hourly::-webkit-scrollbar{display:none;}
+  .hour{
+    flex:0 0 auto;
+    text-align:center;
+    font-size:13px;
+    color:var(--text-dim);
+    min-width:38px;
+  }
+  .hour .h-icon{font-size:20px; margin:6px 0;}
+  .hour .h-temp{color:var(--text); font-size:14px; font-weight:600;}
+  .hour .h-pop{color:#9FD6FF; font-size:11px; margin-top:2px;}
+
+  /* Cards */
+  .card{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:18px;
+    padding:16px;
+  }
+  .card .label{
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:0.6px;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .card .headline{
+    font-size:19px;
+    font-weight:600;
+    margin-top:10px;
+  }
+  .card .sub{
+    font-size:13.5px;
+    color:var(--text-dim);
+    margin-top:6px;
+    line-height:1.4;
+  }
+  .badge{
+    display:inline-block;
+    margin-top:10px;
+    padding:5px 11px;
+    border-radius:20px;
+    font-size:12.5px;
+    font-weight:700;
+  }
+  .badge.good{background:rgba(143,227,166,0.22); color:var(--accent-good);}
+  .badge.warn{background:rgba(255,211,107,0.22); color:var(--accent-warn);}
+  .badge.bad{background:rgba(255,158,158,0.22); color:var(--accent-bad);}
+
+  .grid2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  .grid2 .card .headline{font-size:16px;}
+
+  .footer-note{
+    text-align:center;
+    font-size:11px;
+    color:var(--text-faint);
+    margin-top:4px;
+    padding:0 10px;
+    line-height:1.5;
+  }
+
+  .state{
+    text-align:center;
+    color:var(--text-dim);
+    font-size:14px;
+    padding:30px 10px;
+  }
+  .state.err{color:var(--accent-bad);}
+
+  @media (prefers-reduced-motion: no-preference){
+    .card, .hero .temp{transition:opacity 0.25s ease;}
+  }
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="locbar">
+    <input id="searchInput" type="text" placeholder="Search city" autocomplete="off">
+    <div class="iconbtn" id="searchBtn" title="Search">🔎</div>
+    <div class="iconbtn" id="locBtn" title="Use my location">📍</div>
+  </div>
+
+  <div id="loadingState" class="state">Loading weather…</div>
+  <div id="errorState" class="state err hidden"></div>
+
+  <div id="app" class="hidden" style="display:flex; flex-direction:column; gap:16px;">
+
+    <div class="hero">
+      <div class="place" id="placeName">—</div>
+      <div class="updated" id="updatedAt">—</div>
+      <div class="icon" id="heroIcon">—</div>
+      <div class="temp" id="heroTemp">—°</div>
+      <div class="cond" id="heroCond">—</div>
+      <div class="hilo" id="heroHiLo">H:— L:—  ·  Feels like —°</div>
+    </div>
+
+    <div class="hourly" id="hourlyStrip"></div>
+
+    <!-- Need 2 (required): rain / umbrella -->
+    <div class="card" id="rainCard">
+      <div class="label">☔ Bring a raincoat?</div>
+      <div class="headline" id="rainHeadline">—</div>
+      <div class="sub" id="rainSub">—</div>
+      <span class="badge" id="rainBadge">—</span>
+    </div>
+
+    <div class="grid2">
+      <!-- Need 3 (custom): bike or drive -->
+      <div class="card" id="bikeCard">
+        <div class="label">🚲 Bike or drive?</div>
+        <div class="headline" id="bikeHeadline">—</div>
+        <div class="sub" id="bikeSub">—</div>
+      </div>
+
+      <!-- Need 4 (custom): outdoor screen-break window -->
+      <div class="card" id="uvCard">
+        <div class="label">🌤️ Outdoor break?</div>
+        <div class="headline" id="uvHeadline">—</div>
+        <div class="sub" id="uvSub">—</div>
+      </div>
+    </div>
+
+    <div class="footer-note">Weather data from Open-Meteo · updates on refresh · location used only in your browser, never sent anywhere but the weather API.</div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const loadingState = $('loadingState');
+  const errorState = $('errorState');
+  const app = $('app');
+
+  function showLoading(){
+    loadingState.classList.remove('hidden');
+    errorState.classList.add('hidden');
+    app.classList.add('hidden');
+  }
+  function showError(msg){
+    loadingState.classList.add('hidden');
+    errorState.classList.remove('hidden');
+    app.classList.add('hidden');
+    errorState.textContent = msg;
+  }
+  function showApp(){
+    loadingState.classList.add('hidden');
+    errorState.classList.add('hidden');
+    app.classList.remove('hidden');
+  }
+
+  // WMO weather code -> [emoji, description]
+  function codeInfo(code){
+    const map = {
+      0:['☀️','Clear sky'], 1:['🌤️','Mostly clear'], 2:['⛅','Partly cloudy'], 3:['☁️','Overcast'],
+      45:['🌫️','Fog'], 48:['🌫️','Icy fog'],
+      51:['🌦️','Light drizzle'], 53:['🌦️','Drizzle'], 55:['🌧️','Dense drizzle'],
+      56:['🌧️','Freezing drizzle'], 57:['🌧️','Freezing drizzle'],
+      61:['🌧️','Light rain'], 63:['🌧️','Rain'], 65:['🌧️','Heavy rain'],
+      66:['🌧️','Freezing rain'], 67:['🌧️','Freezing rain'],
+      71:['🌨️','Light snow'], 73:['🌨️','Snow'], 75:['❄️','Heavy snow'], 77:['❄️','Snow grains'],
+      80:['🌦️','Rain showers'], 81:['🌧️','Rain showers'], 82:['⛈️','Violent showers'],
+      85:['🌨️','Snow showers'], 86:['❄️','Snow showers'],
+      95:['⛈️','Thunderstorm'], 96:['⛈️','Thunderstorm w/ hail'], 99:['⛈️','Thunderstorm w/ hail']
+    };
+    return map[code] || ['—','Unknown'];
+  }
+
+  function fmtHour(iso){
+    const d = new Date(iso);
+    let h = d.getHours();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if(h === 0) h = 12;
+    return h + ampm;
+  }
+
+  async function fetchWeather(lat, lon, label){
+    showLoading();
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,uv_index,cloud_cover,is_day` +
+      `&hourly=temperature_2m,precipitation_probability,weather_code,uv_index` +
+      `&daily=temperature_2m_max,temperature_2m_min` +
+      `&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch` +
+      `&timezone=auto&forecast_days=1`;
+
+    try{
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('Weather service error (' + res.status + ')');
+      const data = await res.json();
+      render(data, label);
+      showApp();
+    }catch(err){
+      showError("Couldn't load weather: " + err.message + ". Check your connection and try again.");
+    }
+  }
+
+  function render(data, label){
+    const cur = data.current;
+    const hourly = data.hourly;
+    const daily = data.daily;
+    const [icon, cond] = codeInfo(cur.weather_code);
+
+    $('placeName').textContent = label;
+    $('updatedAt').textContent = 'As of ' + fmtHour(cur.time);
+    $('heroIcon').textContent = icon;
+    $('heroTemp').textContent = Math.round(cur.temperature_2m) + '°';
+    $('heroCond').textContent = cond;
+    $('heroHiLo').textContent =
+      `H:${Math.round(daily.temperature_2m_max[0])}° L:${Math.round(daily.temperature_2m_min[0])}°  ·  Feels like ${Math.round(cur.apparent_temperature)}°`;
+
+    // find index of current hour to slice next 12 hours
+    const nowIso = cur.time;
+    let startIdx = hourly.time.findIndex(t => t >= nowIso);
+    if(startIdx < 0) startIdx = 0;
+    const nextHours = 12;
+
+    // Hourly strip
+    const strip = $('hourlyStrip');
+    strip.innerHTML = '';
+    for(let i = startIdx; i < Math.min(startIdx + nextHours, hourly.time.length); i++){
+      const [hIcon] = codeInfo(hourly.weather_code[i]);
+      const el = document.createElement('div');
+      el.className = 'hour';
+      el.innerHTML = `
+        <div>${i === startIdx ? 'Now' : fmtHour(hourly.time[i])}</div>
+        <div class="h-icon">${hIcon}</div>
+        <div class="h-temp">${Math.round(hourly.temperature_2m[i])}°</div>
+        <div class="h-pop">${hourly.precipitation_probability[i]}%</div>
+      `;
+      strip.appendChild(el);
+    }
+
+    // Need 2: umbrella / raincoat
+    const nextPop = hourly.precipitation_probability.slice(startIdx, startIdx + 4);
+    const maxPop = nextPop.length ? Math.max(...nextPop) : 0;
+    const rainBadge = $('rainBadge');
+    if(maxPop >= 60){
+      $('rainHeadline').textContent = 'Yes, bring it.';
+      $('rainSub').textContent = `Up to ${maxPop}% chance of precipitation in the next few hours.`;
+      rainBadge.textContent = 'Bring an umbrella';
+      rainBadge.className = 'badge bad';
+    } else if(maxPop >= 30){
+      $('rainHeadline').textContent = 'Maybe pack one.';
+      $('rainSub').textContent = `Up to ${maxPop}% chance of precipitation in the next few hours.`;
+      rainBadge.textContent = 'Possible rain';
+      rainBadge.className = 'badge warn';
+    } else {
+      $('rainHeadline').textContent = "You're fine.";
+      $('rainSub').textContent = `Only up to ${maxPop}% chance of precipitation in the next few hours.`;
+      rainBadge.textContent = 'No umbrella needed';
+      rainBadge.className = 'badge good';
+    }
+
+    // Need 3 (custom): bike or drive
+    // Uses feels-like temp, wind speed, and near-term rain chance
+    const wind = cur.wind_speed_10m;
+    const feelsLike = cur.apparent_temperature;
+    let bikeOk = true;
+    let bikeReasons = [];
+    if(maxPop >= 40){ bikeOk = false; bikeReasons.push('rain likely'); }
+    if(wind >= 20){ bikeOk = false; bikeReasons.push(`wind ${Math.round(wind)} mph`); }
+    if(feelsLike <= 25 || feelsLike >= 95){ bikeOk = false; bikeReasons.push(`feels like ${Math.round(feelsLike)}°`); }
+    $('bikeHeadline').textContent = bikeOk ? 'Bike it 🚴' : 'Drive today';
+    $('bikeSub').textContent = bikeOk
+      ? `Feels like ${Math.round(feelsLike)}°, wind ${Math.round(wind)} mph — comfortable riding conditions.`
+      : `${bikeReasons.join(', ')}. Better to drive or take the bus.`;
+
+    // Need 4 (custom): outdoor screen-break window
+    const uv = cur.uv_index;
+    const cloud = cur.cloud_cover;
+    let uvVerdict, uvSub;
+    if(uv >= 6){
+      uvVerdict = 'Seek shade';
+      uvSub = `UV index ${uv.toFixed(1)} — wear sunscreen or take your break in the shade.`;
+    } else if(feelsLike <= 32 || feelsLike >= 95){
+      uvVerdict = 'Stay in';
+      uvSub = `Feels like ${Math.round(feelsLike)}° — a bit extreme for a comfortable break outside.`;
+    } else {
+      uvVerdict = 'Good time';
+      uvSub = `UV index ${uv.toFixed(1)}, ${cloud}% cloud cover — pleasant conditions for a short break outside.`;
+    }
+    $('uvHeadline').textContent = uvVerdict;
+    $('uvSub').textContent = uvSub;
+  }
+
+  function useCoords(lat, lon, label){
+    fetchWeather(lat, lon, label);
+  }
+
+  async function reverseLabel(lat, lon){
+    // Best-effort label via Open-Meteo geocoding search is not reverse geocoding,
+    // so just show coordinates rounded — good enough for a functional prototype.
+    return `Current location`;
+  }
+
+  $('locBtn').addEventListener('click', () => {
+    if(!navigator.geolocation){
+      showError('Geolocation is not supported in this browser. Try searching for a city instead.');
+      return;
+    }
+    showLoading();
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const label = await reverseLabel(latitude, longitude);
+        useCoords(latitude, longitude, label);
+      },
+      (err) => {
+        showError('Location access denied or unavailable. Try searching for a city instead.');
+      },
+      { timeout: 8000 }
+    );
+  });
+
+  async function searchCity(){
+    const q = $('searchInput').value.trim();
+    if(!q) return;
+    showLoading();
+    try{
+      const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1`);
+      const data = await res.json();
+      if(!data.results || !data.results.length){
+        showError(`No results for "${q}". Try a different city name.`);
+        return;
+      }
+      const r = data.results[0];
+      const label = [r.name, r.admin1, r.country].filter(Boolean).join(', ');
+      useCoords(r.latitude, r.longitude, label);
+    }catch(err){
+      showError("Couldn't search for that city: " + err.message);
+    }
+  }
+
+  $('searchBtn').addEventListener('click', searchCity);
+  $('searchInput').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') searchCity();
+  });
+
+  // Initial load: try geolocation, fall back to Chicago
+  showLoading();
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const label = await reverseLabel(latitude, longitude);
+        useCoords(latitude, longitude, label);
+      },
+      () => { useCoords(41.8781, -87.6298, 'Chicago, IL'); },
+      { timeout: 6000 }
+    );
+  } else {
+    useCoords(41.8781, -87.6298, 'Chicago, IL');
+  }
+})();
+</script>
+</body>
+</html>
