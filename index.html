@@ -85,6 +85,28 @@
     color:var(--text-faint);
     margin-top:2px;
   }
+  .unit-toggle{
+    display:inline-flex;
+    margin-top:8px;
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:20px;
+    overflow:hidden;
+  }
+  .unit-toggle button{
+    border:none;
+    background:transparent;
+    color:var(--text-dim);
+    font-size:12px;
+    font-weight:700;
+    padding:5px 14px;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .unit-toggle button.active{
+    background:rgba(255,255,255,0.25);
+    color:var(--text);
+  }
   .hero .temp{
     font-size:96px;
     font-weight:200;
@@ -108,18 +130,31 @@
     margin-top:4px;
   }
 
-  /* Hourly strip */
+  /* Hourly strip — rolling 12-hour window with a visible scrollbar */
   .hourly{
     background:var(--card);
     border:1px solid var(--card-border);
     border-radius:18px;
-    padding:14px 10px;
+    padding:14px 10px 10px 10px;
     display:flex;
     overflow-x:auto;
     gap:18px;
-    scrollbar-width:none;
   }
-  .hourly::-webkit-scrollbar{display:none;}
+  .hourly::-webkit-scrollbar{
+    height:6px;
+  }
+  .hourly::-webkit-scrollbar-track{
+    background:rgba(255,255,255,0.08);
+    border-radius:4px;
+  }
+  .hourly::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,0.4);
+    border-radius:4px;
+  }
+  .hourly{
+    scrollbar-width:thin;
+    scrollbar-color:rgba(255,255,255,0.4) rgba(255,255,255,0.08);
+  }
   .hour{
     flex:0 0 auto;
     text-align:center;
@@ -222,13 +257,17 @@
       <div class="temp" id="heroTemp">—°</div>
       <div class="cond" id="heroCond">—</div>
       <div class="hilo" id="heroHiLo">H:— L:—  ·  Feels like —°</div>
+      <div class="unit-toggle">
+        <button id="unitF" class="active">°F</button>
+        <button id="unitC">°C</button>
+      </div>
     </div>
 
     <div class="hourly" id="hourlyStrip"></div>
 
     <!-- Need 2 (required): rain / umbrella -->
     <div class="card" id="rainCard">
-      <div class="label">☔ Bring a raincoat?</div>
+      <div class="label">☔ Need an umbrella?</div>
       <div class="headline" id="rainHeadline">—</div>
       <div class="sub" id="rainSub">—</div>
       <span class="badge" id="rainBadge">—</span>
@@ -261,6 +300,14 @@
   const loadingState = $('loadingState');
   const errorState = $('errorState');
   const app = $('app');
+  let lastData = null;   // most recent API response (always fetched in Fahrenheit)
+  let lastLabel = '';
+  let unit = 'F';        // 'F' or 'C' — display unit only, data is always fetched in F
+
+  function toDisplayTemp(f){
+    const v = unit === 'F' ? f : (f - 32) * 5/9;
+    return Math.round(v) + '°' + unit;
+  }
 
   function showLoading(){
     loadingState.classList.remove('hidden');
@@ -311,12 +358,14 @@
       `&hourly=temperature_2m,precipitation_probability,weather_code,uv_index` +
       `&daily=temperature_2m_max,temperature_2m_min` +
       `&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch` +
-      `&timezone=auto&forecast_days=1`;
+      `&timezone=auto&forecast_days=2`;
 
     try{
       const res = await fetch(url);
       if(!res.ok) throw new Error('Weather service error (' + res.status + ')');
       const data = await res.json();
+      lastData = data;
+      lastLabel = label;
       render(data, label);
       showApp();
     }catch(err){
@@ -333,12 +382,12 @@
     $('placeName').textContent = label;
     $('updatedAt').textContent = 'As of ' + fmtHour(cur.time);
     $('heroIcon').textContent = icon;
-    $('heroTemp').textContent = Math.round(cur.temperature_2m) + '°';
+    $('heroTemp').textContent = toDisplayTemp(cur.temperature_2m);
     $('heroCond').textContent = cond;
     $('heroHiLo').textContent =
-      `H:${Math.round(daily.temperature_2m_max[0])}° L:${Math.round(daily.temperature_2m_min[0])}°  ·  Feels like ${Math.round(cur.apparent_temperature)}°`;
+      `H:${toDisplayTemp(daily.temperature_2m_max[0])} L:${toDisplayTemp(daily.temperature_2m_min[0])}  ·  Feels like ${toDisplayTemp(cur.apparent_temperature)}`;
 
-    // find index of current hour to slice next 12 hours
+    // find index of current hour to slice next 12 hours (rolling window from "now")
     const nowIso = cur.time;
     let startIdx = hourly.time.findIndex(t => t >= nowIso);
     if(startIdx < 0) startIdx = 0;
@@ -354,7 +403,7 @@
       el.innerHTML = `
         <div>${i === startIdx ? 'Now' : fmtHour(hourly.time[i])}</div>
         <div class="h-icon">${hIcon}</div>
-        <div class="h-temp">${Math.round(hourly.temperature_2m[i])}°</div>
+        <div class="h-temp">${toDisplayTemp(hourly.temperature_2m[i])}</div>
         <div class="h-pop">${hourly.precipitation_probability[i]}%</div>
       `;
       strip.appendChild(el);
@@ -389,10 +438,10 @@
     let bikeReasons = [];
     if(maxPop >= 40){ bikeOk = false; bikeReasons.push('rain likely'); }
     if(wind >= 20){ bikeOk = false; bikeReasons.push(`wind ${Math.round(wind)} mph`); }
-    if(feelsLike <= 25 || feelsLike >= 95){ bikeOk = false; bikeReasons.push(`feels like ${Math.round(feelsLike)}°`); }
+    if(feelsLike <= 25 || feelsLike >= 95){ bikeOk = false; bikeReasons.push(`feels like ${toDisplayTemp(feelsLike)}`); }
     $('bikeHeadline').textContent = bikeOk ? 'Bike it 🚴' : 'Drive today';
     $('bikeSub').textContent = bikeOk
-      ? `Feels like ${Math.round(feelsLike)}°, wind ${Math.round(wind)} mph — comfortable riding conditions.`
+      ? `Feels like ${toDisplayTemp(feelsLike)}, wind ${Math.round(wind)} mph — comfortable riding conditions.`
       : `${bikeReasons.join(', ')}. Better to drive or take the bus.`;
 
     // Need 4 (custom): outdoor screen-break window
@@ -404,7 +453,7 @@
       uvSub = `UV index ${uv.toFixed(1)} — wear sunscreen or take your break in the shade.`;
     } else if(feelsLike <= 32 || feelsLike >= 95){
       uvVerdict = 'Stay in';
-      uvSub = `Feels like ${Math.round(feelsLike)}° — a bit extreme for a comfortable break outside.`;
+      uvSub = `Feels like ${toDisplayTemp(feelsLike)} — a bit extreme for a comfortable break outside.`;
     } else {
       uvVerdict = 'Good time';
       uvSub = `UV index ${uv.toFixed(1)}, ${cloud}% cloud cover — pleasant conditions for a short break outside.`;
@@ -460,6 +509,21 @@
       showError("Couldn't search for that city: " + err.message);
     }
   }
+
+  $('unitF').addEventListener('click', () => {
+    if(unit === 'F') return;
+    unit = 'F';
+    $('unitF').classList.add('active');
+    $('unitC').classList.remove('active');
+    if(lastData) render(lastData, lastLabel);
+  });
+  $('unitC').addEventListener('click', () => {
+    if(unit === 'C') return;
+    unit = 'C';
+    $('unitC').classList.add('active');
+    $('unitF').classList.remove('active');
+    if(lastData) render(lastData, lastLabel);
+  });
 
   $('searchBtn').addEventListener('click', searchCity);
   $('searchInput').addEventListener('keydown', (e) => {
